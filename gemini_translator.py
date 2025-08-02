@@ -1,0 +1,83 @@
+import os
+import logging
+from google import genai
+from google.genai import types
+
+class GeminiTranslator:
+    def __init__(self):
+        """Initialize Gemini client for translation"""
+        self.client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", "default_key"))
+        self.language_codes = {
+            'french': 'French',
+            'english': 'English', 
+            'polish': 'Polish'
+        }
+    
+    def translate_text(self, text: str, source_language: str) -> dict:
+        """
+        Translate text from source language to the other two languages
+        
+        Args:
+            text: Text to translate
+            source_language: Source language ('french', 'english', or 'polish')
+            
+        Returns:
+            Dict with translations for all three languages
+        """
+        translations = {
+            'french': '',
+            'english': '',
+            'polish': ''
+        }
+        
+        # Set the source text in the appropriate language
+        translations[source_language] = text
+        
+        # Get the other two languages to translate to
+        target_languages = [lang for lang in self.language_codes.keys() if lang != source_language]
+        
+        for target_lang in target_languages:
+            try:
+                translated_text = self._translate_to_language(
+                    text, 
+                    self.language_codes[source_language],
+                    self.language_codes[target_lang]
+                )
+                translations[target_lang] = translated_text
+            except Exception as e:
+                logging.error(f"Failed to translate to {target_lang}: {str(e)}")
+                translations[target_lang] = f"Translation error: {str(e)}"
+        
+        return translations
+    
+    def _translate_to_language(self, text: str, source_lang: str, target_lang: str) -> str:
+        """
+        Translate text from source language to target language using Gemini
+        
+        Args:
+            text: Text to translate
+            source_lang: Source language name
+            target_lang: Target language name
+            
+        Returns:
+            Translated text
+        """
+        prompt = f"""Translate the following text from {source_lang} to {target_lang}. 
+        Only return the translation, no explanations or additional text.
+        
+        Text to translate: {text}"""
+        
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
+            
+            if response.text:
+                return response.text.strip()
+            else:
+                raise Exception("Empty response from Gemini API")
+                
+        except Exception as e:
+            logging.error(f"Gemini API error: {str(e)}")
+            raise Exception(f"Translation service unavailable: {str(e)}")
