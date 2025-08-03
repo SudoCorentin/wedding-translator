@@ -68,9 +68,41 @@ html, body {
     text-decoration: underline;
 }
 
-/* Highlight effect for new translated text */
-.highlight-new-text {
-    background-color: rgba(255, 255, 0, 0.4);
+/* Container for highlighted content */
+.translation-input-wrapper {
+    flex: 1;
+    height: 100%;
+    position: relative;
+}
+
+/* Hide the original textarea while highlighting */
+.translation-input.highlighting {
+    color: transparent;
+    caret-color: black;
+}
+
+/* Overlay for word-level highlighting */
+.highlight-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    padding: 4px;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow: hidden;
+    z-index: 1;
+}
+
+/* Highlight effect for new words */
+.new-word {
+    background-color: rgba(255, 255, 0, 0.6);
     animation: fadeHighlight 3s ease-out forwards;
     padding: 1px 2px;
     border-radius: 2px;
@@ -78,35 +110,10 @@ html, body {
 
 @keyframes fadeHighlight {
     0% {
-        background-color: rgba(255, 255, 0, 0.4);
+        background-color: rgba(255, 255, 0, 0.6);
     }
     100% {
         background-color: rgba(255, 255, 0, 0);
-    }
-}
-
-/* Container for highlighted content */
-.translation-input-wrapper {
-    flex: 1;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Simplified highlight effect using text area animation */
-.translation-input.highlight-flash {
-    animation: flashHighlight 2s ease-out forwards;
-}
-
-@keyframes flashHighlight {
-    0% {
-        background-color: rgba(255, 255, 180, 0.6);
-    }
-    50% {
-        background-color: rgba(255, 255, 180, 0.3);
-    }
-    100% {
-        background-color: transparent;
     }
 }
 
