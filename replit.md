@@ -2,6 +2,13 @@
 
 This is a live translation web application that provides real-time translation between French, English, and Polish languages with multi-device synchronization capabilities. The application features a minimal three-column interface in light mode where users can click and type in any column to see instant translations in the other two languages. Built with Flask as the backend framework, powered by Google's Gemini AI for translation services, and enhanced with Firebase Realtime Database for instant multi-device sync, the app offers a clean, distraction-free user experience with seamless cross-device functionality.
 
+## Recent Changes (August 3, 2025)
+✓ **Fixed translation logic** - Now processes complete text instead of just first word
+✓ **Implemented Firebase Realtime Database** - Multi-device sync working and tested
+✓ **Removed complex WebSocket/PostgreSQL code** - Simplified architecture for reliability  
+✓ **Enhanced parallel API calls** - Reduced translation time to ~3 seconds
+✓ **Fixed Firebase region URL** - Using correct Europe West 1 database endpoint
+
 # User Preferences
 
 - Preferred communication style: Simple, everyday language
