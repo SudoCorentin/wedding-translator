@@ -65,8 +65,10 @@ class LiveTranslator {
         });
         
         // Add active class to selected column
-        const selectedColumn = document.querySelector(`[data-language="${language}"]`);
-        selectedColumn.classList.add('active-column');
+        const selectedColumn = document.querySelector(`.translation-column[data-language="${language}"]`);
+        if (selectedColumn) {
+            selectedColumn.classList.add('active-column');
+        }
         
         // Update active language
         this.activeLanguage = language;
@@ -81,7 +83,7 @@ class LiveTranslator {
             }
         });
         
-        // Column selected - no status message needed
+        console.log('Selected column:', language); // Debug log
     }
     
     handleInput(text, sourceLanguage) {
@@ -116,6 +118,7 @@ class LiveTranslator {
         }
         
         this.isTranslating = true;
+        console.log('Translating:', text, 'from', sourceLanguage); // Debug log
         
         try {
             const response = await fetch('/translate', {
@@ -130,6 +133,7 @@ class LiveTranslator {
             });
             
             const data = await response.json();
+            console.log('Translation response:', data); // Debug log
             
             if (data.success) {
                 this.updateTranslations(data.translations, sourceLanguage);
@@ -148,12 +152,16 @@ class LiveTranslator {
     
     updateTranslations(translations, sourceLanguage) {
         // Update the text in other columns
+        console.log('Updating translations:', translations); // Debug log
         Object.keys(translations).forEach(language => {
             if (language !== sourceLanguage) {
-                const input = document.querySelector(`[data-language="${language}"]`);
+                const input = document.querySelector(`.translation-input[data-language="${language}"]`);
                 if (input) {
                     input.value = translations[language];
                     this.lastTranslatedText[language] = translations[language];
+                    console.log('Updated', language, 'with:', translations[language]); // Debug log
+                } else {
+                    console.error('Could not find input for language:', language); // Debug log
                 }
             }
         });
