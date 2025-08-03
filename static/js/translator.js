@@ -125,12 +125,15 @@ class LiveTranslator {
         
         // Set debounced translation - reduced timeout for faster response
         this.translationTimeout = setTimeout(() => {
+            console.log('🕐 TIMING: Debounce delay completed, starting translation');
             console.log('Starting translation for full text:', text.substring(0, 100) + '...');
             this.translateText(text.trim(), sourceLanguage);
-        }, 2000); // increase to 2000 to hit the API max 30 times per minute
+        }, 500); // Reduced to 500ms for faster response
     }
 
     async translateText(text, sourceLanguage) {
+        const startTime = performance.now();
+        console.log('🕐 TIMING: Translation process started at', startTime);
         console.log('TRANSLATE REQUEST: Starting translation for', sourceLanguage, 'text length:', text.length);
         
         if (this.isTranslating) {
@@ -141,7 +144,10 @@ class LiveTranslator {
         this.isTranslating = true;
         
         try {
+            const apiStartTime = performance.now();
+            console.log('🕐 TIMING: API request starting at', apiStartTime - startTime, 'ms');
             console.log('TRANSLATE API: Sending request to /translate');
+            
             const response = await fetch('/translate', {
                 method: 'POST',
                 headers: {
@@ -153,20 +159,37 @@ class LiveTranslator {
                 })
             });
             
+            const apiEndTime = performance.now();
+            const apiDuration = apiEndTime - apiStartTime;
+            console.log('🕐 TIMING: API response received in', apiDuration, 'ms');
             console.log('TRANSLATE API: Response status =', response.status);
+            
             const data = await response.json();
             console.log('TRANSLATE API: Response data =', data);
             
             if (data.success) {
+                const uiStartTime = performance.now();
+                console.log('🕐 TIMING: UI update starting at', uiStartTime - startTime, 'ms');
                 console.log('TRANSLATE SUCCESS: Updating UI with translations');
+                
                 // Update last translated text
                 this.lastTranslatedText[sourceLanguage] = text;
                 
                 // Update translations in other columns
                 this.updateTranslations(data.translations, sourceLanguage);
                 
+                const firebaseStartTime = performance.now();
+                console.log('🕐 TIMING: Firebase sync starting at', firebaseStartTime - startTime, 'ms');
+                
                 // Sync to Firebase for multi-device support
                 this.syncToFirebase(data.translations, sourceLanguage);
+                
+                const totalTime = performance.now() - startTime;
+                console.log('🕐 TIMING: Total translation time:', totalTime, 'ms');
+                console.log('🕐 TIMING BREAKDOWN:');
+                console.log('  - API call:', apiDuration, 'ms');
+                console.log('  - UI update:', firebaseStartTime - uiStartTime, 'ms');
+                console.log('  - Firebase sync: Started at', firebaseStartTime - startTime, 'ms');
                 console.log('TRANSLATE COMPLETE: Translation and sync finished');
             } else {
                 console.error('TRANSLATE ERROR: API returned error =', data.error);
