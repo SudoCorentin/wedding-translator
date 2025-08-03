@@ -87,29 +87,27 @@ html, body {
 
 /* Container for highlighted content */
 .translation-input-wrapper {
-    position: relative;
     flex: 1;
     height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
-.translation-highlight-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    font-family: inherit;
-    font-size: 14px;
-    line-height: 1.4;
-    padding: 4px;
-    margin: 0;
-    border: none;
-    background-color: transparent;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow: hidden;
-    z-index: 1;
+/* Simplified highlight effect using text area animation */
+.translation-input.highlight-flash {
+    animation: flashHighlight 2s ease-out forwards;
+}
+
+@keyframes flashHighlight {
+    0% {
+        background-color: rgba(255, 255, 180, 0.6);
+    }
+    50% {
+        background-color: rgba(255, 255, 180, 0.3);
+    }
+    100% {
+        background-color: transparent;
+    }
 }
 
 /* Text area with no padding/margins */

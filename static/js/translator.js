@@ -267,105 +267,24 @@ class LiveTranslator {
     }
 
     highlightNewContent(input, previousText, newText) {
-        // Only highlight if content has actually changed
-        if (previousText === newText) {
+        // Only highlight if content has actually changed and text was added
+        if (previousText === newText || newText.length <= previousText.length) {
             return;
         }
         
-        // Find the new text that was added
-        const newWords = this.findNewWords(previousText, newText);
+        // Simple flash effect for new content
+        input.classList.remove('highlight-flash');
         
-        if (newWords.length === 0) {
-            return;
-        }
+        // Force reflow to ensure the class removal takes effect
+        input.offsetHeight;
         
-        // Create temporary highlight spans for new words
-        this.createWordHighlights(input, newText, newWords);
-    }
-    
-    findNewWords(oldText, newText) {
-        // Simple approach: if new text is longer, the difference is at the end
-        if (newText.length <= oldText.length) {
-            return [];
-        }
+        // Add flash highlight
+        input.classList.add('highlight-flash');
         
-        // Find the common prefix
-        let commonPrefixLength = 0;
-        const minLength = Math.min(oldText.length, newText.length);
-        
-        for (let i = 0; i < minLength; i++) {
-            if (oldText[i] === newText[i]) {
-                commonPrefixLength = i + 1;
-            } else {
-                break;
-            }
-        }
-        
-        // The new content is everything after the common prefix
-        const newContent = newText.substring(commonPrefixLength);
-        
-        // Split into words (including punctuation and spaces)
-        const words = newContent.split(/(\s+)/).filter(word => word.length > 0);
-        
-        return words;
-    }
-    
-    createWordHighlights(input, fullText, newWords) {
-        // Find where the new words start in the full text
-        const newContent = newWords.join('');
-        const startIndex = fullText.lastIndexOf(newContent);
-        
-        if (startIndex === -1) {
-            return;
-        }
-        
-        // Create a temporary overlay div to show highlights
-        this.createHighlightOverlay(input, fullText, startIndex, startIndex + newContent.length);
-    }
-    
-    createHighlightOverlay(input, fullText, highlightStart, highlightEnd) {
-        // Remove any existing highlight overlay
-        const existingOverlay = input.parentElement.querySelector('.translation-highlight-overlay');
-        if (existingOverlay) {
-            existingOverlay.remove();
-        }
-        
-        // Create overlay div
-        const overlay = document.createElement('div');
-        overlay.className = 'translation-highlight-overlay';
-        
-        // Split text into before, highlighted, and after parts
-        const beforeText = fullText.substring(0, highlightStart);
-        const highlightText = fullText.substring(highlightStart, highlightEnd);
-        const afterText = fullText.substring(highlightEnd);
-        
-        // Create the content with highlight
-        overlay.innerHTML = 
-            this.escapeHtml(beforeText) + 
-            '<span class="highlight-new-text">' + this.escapeHtml(highlightText) + '</span>' + 
-            this.escapeHtml(afterText);
-        
-        // Position the overlay
-        overlay.style.top = input.offsetTop + 'px';
-        overlay.style.left = input.offsetLeft + 'px';
-        overlay.style.width = input.offsetWidth + 'px';
-        overlay.style.height = input.offsetHeight + 'px';
-        
-        // Add to parent element
-        input.parentElement.appendChild(overlay);
-        
-        // Remove overlay after highlight animation completes
+        // Remove highlight class after animation completes
         setTimeout(() => {
-            if (overlay.parentElement) {
-                overlay.remove();
-            }
-        }, 3200);
-    }
-    
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+            input.classList.remove('highlight-flash');
+        }, 2000);
     }
 
     
