@@ -46,6 +46,7 @@ class LiveTranslator {
             input.addEventListener('input', (e) => {
                 if (this.activeLanguage === language) {
                     this.handleInput(e.target.value, language);
+                    this.autoScrollToBottom(e.target); // Auto-scroll while typing
                 }
             });
             
@@ -159,6 +160,7 @@ class LiveTranslator {
                 if (input) {
                     input.value = translations[language];
                     this.lastTranslatedText[language] = translations[language];
+                    this.autoScrollToBottom(input); // Auto-scroll after updating
                     console.log('Updated', language, 'with:', translations[language]); // Debug log
                 } else {
                     console.error('Could not find input for language:', language); // Debug log
@@ -200,6 +202,16 @@ class LiveTranslator {
     
     capitalize(str) {
         return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+    
+    autoScrollToBottom(textarea) {
+        // Auto-scroll to bottom when text gets long
+        if (textarea && textarea.scrollHeight > textarea.clientHeight) {
+            // Use requestAnimationFrame for smooth scrolling
+            requestAnimationFrame(() => {
+                textarea.scrollTop = textarea.scrollHeight;
+            });
+        }
     }
 }
 
