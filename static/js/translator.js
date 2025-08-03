@@ -267,94 +267,14 @@ class LiveTranslator {
     }
 
     highlightNewContent(input, previousText, newText) {
+        // Disable highlighting for now to prevent layout issues
         // Only highlight if content has actually changed and text was added
         if (previousText === newText || newText.length <= previousText.length) {
             return;
         }
         
-        // Find the new words that were added
-        const newWords = this.getNewWords(previousText, newText);
-        if (newWords.length === 0) {
-            return;
-        }
-        
-        // Create word-level highlighting
-        this.createWordHighlighting(input, newText, newWords);
-    }
-    
-    getNewWords(oldText, newText) {
-        // Find common prefix
-        let commonPrefix = 0;
-        const minLength = Math.min(oldText.length, newText.length);
-        
-        for (let i = 0; i < minLength; i++) {
-            if (oldText[i] === newText[i]) {
-                commonPrefix = i + 1;
-            } else {
-                break;
-            }
-        }
-        
-        // Extract the new part
-        const newPart = newText.substring(commonPrefix);
-        
-        // Split into words, keeping spaces
-        const words = newPart.split(/(\s+)/);
-        return words.filter(word => word.trim().length > 0);
-    }
-    
-    createWordHighlighting(input, fullText, newWords) {
-        const wrapper = input.parentElement;
-        
-        // Remove existing overlay
-        const existingOverlay = wrapper.querySelector('.highlight-overlay');
-        if (existingOverlay) {
-            existingOverlay.remove();
-        }
-        
-        // Create overlay
-        const overlay = document.createElement('div');
-        overlay.className = 'highlight-overlay';
-        
-        // Find where new words start in the text
-        const newWordsText = newWords.join(' ');
-        const startIndex = fullText.lastIndexOf(newWordsText);
-        
-        if (startIndex === -1) {
-            return;
-        }
-        
-        // Build highlighted HTML
-        const beforeText = fullText.substring(0, startIndex);
-        const highlightedText = fullText.substring(startIndex, startIndex + newWordsText.length);
-        const afterText = fullText.substring(startIndex + newWordsText.length);
-        
-        // Escape HTML and highlight new words
-        const escapedBefore = this.escapeHtml(beforeText);
-        const escapedHighlighted = '<span class="new-word">' + this.escapeHtml(highlightedText) + '</span>';
-        const escapedAfter = this.escapeHtml(afterText);
-        
-        overlay.innerHTML = escapedBefore + escapedHighlighted + escapedAfter;
-        
-        // Add overlay to wrapper
-        wrapper.appendChild(overlay);
-        
-        // Make textarea text transparent temporarily
-        input.classList.add('highlighting');
-        
-        // Remove highlighting after animation
-        setTimeout(() => {
-            if (overlay.parentElement) {
-                overlay.remove();
-            }
-            input.classList.remove('highlighting');
-        }, 3100);
-    }
-    
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        // For now, no highlighting to maintain proper layout
+        console.log('New content detected but highlighting disabled to preserve layout');
     }
 
     
