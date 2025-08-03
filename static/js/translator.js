@@ -5,6 +5,8 @@ class LiveTranslator {
         this.lastTranslatedText = {};
         this.isTranslating = false;
         this.scrollPositions = {}; // Track scroll positions for each column
+        this.sessionId = window.sessionId || null;
+        this.socket = null;
         
         this.init();
     }
@@ -17,8 +19,14 @@ class LiveTranslator {
         this.errorMessage = document.getElementById('error-message');
         this.statusInfo = document.getElementById('status-info');
         
+        // Initialize WebSocket connection
+        this.setupSocket();
+        
         // Initialize event listeners
         this.setupEventListeners();
+        
+        // Load initial session data if available
+        this.loadSessionData();
         
         // Initialize last translated text and scroll tracking for each language
         this.inputs.forEach(input => {
@@ -137,7 +145,8 @@ class LiveTranslator {
                 },
                 body: JSON.stringify({
                     text: text,
-                    source_language: sourceLanguage
+                    source_language: sourceLanguage,
+                    session_id: this.sessionId
                 })
             });
             
@@ -240,6 +249,55 @@ class LiveTranslator {
         // For the active typing area, always keep cursor visible at bottom
         if (textarea && textarea.scrollHeight > textarea.clientHeight) {
             textarea.scrollTop = textarea.scrollHeight;
+        }
+    }
+    
+    setupSocket() {
+        if (!this.sessionId || typeof io === 'undefined') return;
+        
+        this.socket = io();
+        
+        this.socket.on('connect', () => {
+            console.log('Connected to server');
+            this.socket.emit('join_session', { session_id: this.sessionId });
+        });
+        
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+        
+        this.socket.on('translation_update', (data) => {
+            console.log('Received translation update:', data);
+            if (data.session_id === this.sessionId) {
+                this.updateTranslationsFromSocket(data.translations, data.source_language);
+            }
+        });
+    }
+    
+    updateTranslationsFromSocket(translations, sourceLanguage) {
+        // Update translations received from other devices
+        Object.keys(translations).forEach(language => {
+            const input = document.querySelector(`.translation-input[data-language="${language}"]`);
+            if (input && language !== this.activeLanguage) {
+                input.value = translations[language];
+                this.lastTranslatedText[language] = translations[language];
+                this.autoScrollToBottomForLanguage(input, language);
+            }
+        });
+    }
+    
+    loadSessionData() {
+        // Load initial session data if available
+        if (window.sessionData && Object.keys(window.sessionData).length > 0) {
+            const data = window.sessionData;
+            this.inputs.forEach(input => {
+                const language = input.dataset.language;
+                const text = data[`${language}_text`] || '';
+                if (text) {
+                    input.value = text;
+                    this.lastTranslatedText[language] = text;
+                }
+            });
         }
     }
 }

@@ -12,15 +12,26 @@ This is a live translation web application that provides real-time translation b
 # System Architecture
 
 ## Frontend Architecture
-The frontend uses a minimal three-column layout built with Bootstrap (light mode) and vanilla JavaScript. Each column represents one of the three supported languages (French, English, Polish) with full-height interactive text areas that stretch from top to bottom of the viewport. The interface employs a single-page application approach with dynamic content updates via AJAX calls. Visual feedback is provided through subtle CSS transitions and active column highlighting, with all status messages and loading indicators removed for a clean, distraction-free experience.
+The frontend uses a minimal three-column layout built with Bootstrap (light mode) and vanilla JavaScript. Each column represents one of the three supported languages (French, English, Polish) with full-height interactive text areas that stretch from top to bottom of the viewport. The interface employs a single-page application approach with dynamic content updates via AJAX calls and real-time WebSocket synchronization. Visual feedback is provided through subtle CSS transitions and active column highlighting, with all status messages and loading indicators removed for a clean, distraction-free experience.
 
 ## Backend Architecture
-The backend follows a simple Flask application structure with separation of concerns:
-- **Main Application** (`app.py`): Handles HTTP routing, request processing, and response formatting
+The backend follows a Flask application structure with real-time multi-device support:
+- **Main Application** (`app.py`): Handles HTTP routing, WebSocket connections, and session management
 - **Translation Service** (`gemini_translator.py`): Encapsulates all Gemini AI integration logic
-- **Entry Point** (`main.py`): Simple application launcher
+- **Database Models** (`models.py`): PostgreSQL schema for persistent translation sessions
+- **Entry Point** (`main.py`): Flask-SocketIO application launcher
 
-The API design is minimal with a single `/translate` endpoint that accepts JSON payloads containing the source text and language, returning translations for the other two languages.
+The API design includes:
+- `/translate` endpoint: Accepts JSON payloads with session ID for translation and real-time sync
+- `/session/<session_id>` routes: Session-based URLs for multi-device sharing
+- WebSocket events: Real-time synchronization between connected devices
+
+## Multi-Device Architecture
+**Session Management**: Each translation session gets a unique UUID that serves as both database key and WebSocket room identifier. Users can share session URLs to sync across multiple devices.
+
+**Real-time Synchronization**: WebSocket connections using Flask-SocketIO provide ~10-50ms latency for live updates between devices. When one device types, all connected devices in the same session receive instant updates.
+
+**Database Persistence**: PostgreSQL stores session state including all three language texts and active language, ensuring sessions persist across device disconnections and can be resumed later.
 
 ## Translation Logic
 The system implements a smart translation approach where:
@@ -50,7 +61,9 @@ Client-side state management tracks:
 
 ## Backend Framework
 - **Flask**: Lightweight Python web framework for API and template rendering
-- **Environment Configuration**: Uses environment variables for sensitive configuration (session secret, API keys)
+- **Flask-SocketIO**: WebSocket support for real-time multi-device synchronization
+- **PostgreSQL**: Database for persistent session storage and cross-device state management
+- **Environment Configuration**: Uses environment variables for sensitive configuration (session secret, API keys, database URL)
 
 ## Development Environment
 - **Replit Platform**: Designed for deployment and development on Replit with appropriate CDN links and theme compatibility
