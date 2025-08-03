@@ -112,11 +112,11 @@ class LiveTranslator {
             return;
         }
         
-        // Set debounced translation - increased timeout to reduce API spam
+        // Set debounced translation - reduced timeout for faster response
         this.translationTimeout = setTimeout(() => {
             console.log('Starting translation for full text:', text.substring(0, 100) + '...');
             this.translateText(text.trim(), sourceLanguage);
-        }, 1000); // Increased to 1 second to ensure full text input
+        }, 300); // Reduced to 300ms for faster response
     }
 
     async translateText(text, sourceLanguage) {
