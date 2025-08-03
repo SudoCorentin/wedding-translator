@@ -312,6 +312,16 @@ class LiveTranslator {
                 const input = document.querySelector(`.translation-input[data-language="${language}"]`);
                 if (input && data.translations[language] !== undefined) {
                     const newValue = data.translations[language];
+                    
+                    // CRITICAL: Don't overwrite if user is currently typing in this column
+                    const isCurrentlyActive = (language === this.activeLanguage);
+                    const isUserTyping = input === document.activeElement;
+                    
+                    if (isCurrentlyActive && isUserTyping) {
+                        console.log(`Skipping Firebase update for ${language} - user is actively typing`);
+                        return; // Skip this column to prevent overwriting speech input
+                    }
+                    
                     console.log(`Updating ${language} column with: "${newValue}"`);
                     
                     // Only update if different to avoid cursor jumping
