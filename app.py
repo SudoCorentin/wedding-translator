@@ -26,7 +26,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 
 # Initialize extensions
 db.init_app(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", logger=False, engineio_logger=False)
 
 # Initialize Gemini translator
 translator = GeminiTranslator()
@@ -90,7 +90,7 @@ def translate():
                     'translations': translations,
                     'source_language': source_language,
                     'session_id': session_id
-                }, room=session_id)
+                }, to=session_id)
         
         return jsonify({
             'success': True,
@@ -133,4 +133,4 @@ def on_leave_session(data):
         logging.info(f'Client left session: {session_id}')
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False, log_output=False)
