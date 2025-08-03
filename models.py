@@ -9,6 +9,7 @@ class TranslationSession(db.Model):
     polish_text = db.Column(db.Text, default='')
     active_language = db.Column(db.String(10), default='english')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
