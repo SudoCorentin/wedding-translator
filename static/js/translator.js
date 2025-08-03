@@ -227,28 +227,48 @@ class LiveTranslator {
             this.database = database;
             this.sessionRef = ref(database, `sessions/${this.sessionId}`);
             
+            console.log('Attempting Firebase connection with session:', this.sessionId);
+            console.log('Database reference:', this.sessionRef);
+            
+            // Test Firebase write immediately
+            const testData = {
+                test: 'Firebase connection test',
+                timestamp: Date.now()
+            };
+            
+            set(this.sessionRef, testData).then(() => {
+                console.log('✓ Firebase write test successful');
+            }).catch((error) => {
+                console.error('✗ Firebase write test failed:', error);
+            });
+            
             // Listen for changes from other devices
             onValue(this.sessionRef, (snapshot) => {
                 const data = snapshot.val();
-                if (data && !this.isReceivingUpdate) {
-                    console.log('Received Firebase sync update');
+                console.log('Firebase onValue triggered with data:', data);
+                
+                if (data && data.translations && !this.isReceivingUpdate) {
+                    console.log('Received Firebase sync update with translations');
                     this.isReceivingUpdate = true;
                     this.updateFromFirebase(data);
                     setTimeout(() => {
                         this.isReceivingUpdate = false;
                     }, 100);
                 }
+            }, (error) => {
+                console.error('Firebase onValue error:', error);
             });
             
             console.log('Firebase sync initialized with session:', this.sessionId);
         } catch (error) {
-            console.log('Firebase sync setup failed:', error);
+            console.error('Firebase sync setup failed:', error);
         }
     }
 
     syncToFirebase(translations, activeLanguage) {
         // Send updates to Firebase for other devices
         if (!this.database || this.isReceivingUpdate) {
+            console.log('Skipping Firebase sync - database not available or receiving update');
             return;
         }
 
@@ -260,10 +280,15 @@ class LiveTranslator {
                 timestamp: Date.now()
             };
             
-            set(this.sessionRef, updateData);
-            console.log('Synced to Firebase');
+            console.log('Syncing to Firebase:', updateData);
+            
+            set(this.sessionRef, updateData).then(() => {
+                console.log('✓ Synced to Firebase successfully');
+            }).catch((error) => {
+                console.error('✗ Firebase sync failed:', error);
+            });
         } catch (error) {
-            console.log('Firebase sync failed:', error);
+            console.error('Firebase sync error:', error);
         }
     }
 
