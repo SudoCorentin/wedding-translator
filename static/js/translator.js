@@ -115,10 +115,10 @@ class LiveTranslator {
             return;
         }
         
-        // Set debounced translation
+        // Set debounced translation with shorter delay for better responsiveness
         this.translationTimeout = setTimeout(() => {
             this.translateText(text, sourceLanguage);
-        }, 800); // 800ms debounce for better UX
+        }, 500); // Reduced to 500ms for faster response
     }
     
     async translateText(text, sourceLanguage) {

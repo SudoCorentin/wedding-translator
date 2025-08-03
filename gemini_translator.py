@@ -1,5 +1,7 @@
 import os
 import logging
+import asyncio
+import concurrent.futures
 from google import genai
 from google.genai import types
 
@@ -36,17 +38,27 @@ class GeminiTranslator:
         # Get the other two languages to translate to
         target_languages = [lang for lang in self.language_codes.keys() if lang != source_language]
         
-        for target_lang in target_languages:
-            try:
-                translated_text = self._translate_to_language(
-                    text, 
+        # Use ThreadPoolExecutor to make parallel API calls
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            # Submit both translation tasks simultaneously
+            future_to_lang = {
+                executor.submit(
+                    self._translate_to_language,
+                    text,
                     self.language_codes[source_language],
                     self.language_codes[target_lang]
-                )
-                translations[target_lang] = translated_text
-            except Exception as e:
-                logging.error(f"Failed to translate to {target_lang}: {str(e)}")
-                translations[target_lang] = f"Translation error: {str(e)}"
+                ): target_lang for target_lang in target_languages
+            }
+            
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(future_to_lang):
+                target_lang = future_to_lang[future]
+                try:
+                    translated_text = future.result()
+                    translations[target_lang] = translated_text
+                except Exception as e:
+                    logging.error(f"Failed to translate to {target_lang}: {str(e)}")
+                    translations[target_lang] = f"Translation error: {str(e)}"
         
         return translations
     
