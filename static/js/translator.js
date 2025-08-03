@@ -39,20 +39,31 @@ class LiveTranslator {
         this.inputs.forEach(input => {
             const language = input.dataset.language;
             
-            // Handle column selection on click/focus
+            // Handle column selection on click/focus with debugging
             input.addEventListener('click', () => {
+                console.log('CLICK EVENT: Selecting column', language);
                 this.selectColumn(language);
             });
             
             input.addEventListener('focus', () => {
+                console.log('FOCUS EVENT: Selecting column', language);
+                this.selectColumn(language);
+            });
+            
+            // Add touchstart for mobile compatibility
+            input.addEventListener('touchstart', () => {
+                console.log('TOUCH EVENT: Selecting column', language);
                 this.selectColumn(language);
             });
             
             input.addEventListener('input', (e) => {
+                console.log('INPUT EVENT: Language =', language, 'Active =', this.activeLanguage, 'Text length =', e.target.value.length);
                 if (this.activeLanguage === language) {
                     this.handleInput(e.target.value, language);
                     // For active typing, always keep at bottom
                     this.scrollToBottomIfTyping(e.target);
+                } else {
+                    console.log('INPUT BLOCKED: Not active language');
                 }
             });
             
@@ -120,13 +131,17 @@ class LiveTranslator {
     }
 
     async translateText(text, sourceLanguage) {
+        console.log('TRANSLATE REQUEST: Starting translation for', sourceLanguage, 'text length:', text.length);
+        
         if (this.isTranslating) {
+            console.log('TRANSLATE BLOCKED: Already translating');
             return; // Prevent concurrent translations
         }
         
         this.isTranslating = true;
         
         try {
+            console.log('TRANSLATE API: Sending request to /translate');
             const response = await fetch('/translate', {
                 method: 'POST',
                 headers: {
@@ -138,9 +153,12 @@ class LiveTranslator {
                 })
             });
             
+            console.log('TRANSLATE API: Response status =', response.status);
             const data = await response.json();
+            console.log('TRANSLATE API: Response data =', data);
             
             if (data.success) {
+                console.log('TRANSLATE SUCCESS: Updating UI with translations');
                 // Update last translated text
                 this.lastTranslatedText[sourceLanguage] = text;
                 
@@ -149,14 +167,17 @@ class LiveTranslator {
                 
                 // Sync to Firebase for multi-device support
                 this.syncToFirebase(data.translations, sourceLanguage);
+                console.log('TRANSLATE COMPLETE: Translation and sync finished');
             } else {
+                console.error('TRANSLATE ERROR: API returned error =', data.error);
                 this.showError(data.error || 'Translation failed');
             }
         } catch (error) {
-            console.error('Translation error:', error);
+            console.error('TRANSLATE NETWORK ERROR:', error);
             this.showError('Network error. Please check your connection.');
         } finally {
             this.isTranslating = false;
+            console.log('TRANSLATE DONE: isTranslating set to false');
         }
     }
 
