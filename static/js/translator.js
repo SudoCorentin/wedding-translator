@@ -251,13 +251,8 @@ class LiveTranslator {
             if (language !== sourceLanguage) {
                 const input = document.querySelector(`.translation-input[data-language="${language}"]`);
                 if (input) {
-                    // Store previous text to compare for highlighting
-                    const previousText = input.value;
                     input.value = translations[language];
                     this.lastTranslatedText[language] = translations[language];
-                    
-                    // Apply highlight effect for new content
-                    this.highlightNewContent(input, previousText, translations[language]);
                     
                     // Smart scroll for non-active columns
                     this.autoScrollToBottomForLanguage(input, language);
@@ -266,16 +261,7 @@ class LiveTranslator {
         });
     }
 
-    highlightNewContent(input, previousText, newText) {
-        // Disable highlighting for now to prevent layout issues
-        // Only highlight if content has actually changed and text was added
-        if (previousText === newText || newText.length <= previousText.length) {
-            return;
-        }
-        
-        // For now, no highlighting to maintain proper layout
-        console.log('New content detected but highlighting disabled to preserve layout');
-    }
+
 
     
 
@@ -443,10 +429,7 @@ class LiveTranslator {
                         const isActiveInput = input === document.activeElement;
                         const cursorPosition = isActiveInput ? input.selectionStart : null;
                         
-                        // Apply highlight effect for new content from Firebase
-                        const previousText = input.value;
                         input.value = newValue;
-                        this.highlightNewContent(input, previousText, newValue);
                         this.lastTranslatedText[language] = newValue;
                         
                         // Restore cursor position for active input

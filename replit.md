@@ -20,6 +20,7 @@ This is a live translation web application that provides real-time translation b
 ✓ **Added performance monitoring** - Detailed timing logs throughout the translation pipeline
 ✓ **Implemented smart chunking** - Breaks long texts into sentence-based chunks to avoid 40s API timeouts
 ✓ **Fixed text corruption issues** - Proper chunk boundary handling and reassembly logic
+✓ **Removed highlighting system** - Simplified codebase by removing complex highlighting feature to maintain clean interface
 
 # User Preferences
 

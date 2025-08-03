@@ -68,7 +68,7 @@ html, body {
     text-decoration: underline;
 }
 
-/* Container for highlighted content */
+/* Input wrapper */
 .translation-input-wrapper {
     flex: 1;
     height: 100%;
