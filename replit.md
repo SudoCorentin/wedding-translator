@@ -1,15 +1,18 @@
 # Overview
 
-This is a live translation web application that provides real-time translation between French, English, and Polish languages. The application features a three-column interface where users can type in any of the supported languages and see instant translations in the other two languages. Built with Flask as the backend framework and powered by Google's Gemini AI for translation services, the app offers a smooth, interactive user experience with visual feedback and error handling.
+This is a live translation web application that provides real-time translation between French, English, and Polish languages. The application features a minimal three-column interface in light mode where users can click and type in any column to see instant translations in the other two languages. Built with Flask as the backend framework and powered by Google's Gemini AI for translation services, the app offers a clean, distraction-free user experience that focuses entirely on the translation functionality.
 
 # User Preferences
 
-Preferred communication style: Simple, everyday language.
+- Preferred communication style: Simple, everyday language
+- Interface design: Minimal, clean design with no extra elements
+- Visual style: Light mode interface, full-height columns
+- UI elements: Remove titles, status messages, loading indicators, and decorative icons
 
 # System Architecture
 
 ## Frontend Architecture
-The frontend uses a responsive three-column layout built with Bootstrap and vanilla JavaScript. Each column represents one of the three supported languages (French, English, Polish) with interactive text areas. The interface employs a single-page application approach with dynamic content updates via AJAX calls. Visual feedback is provided through CSS transitions, active column highlighting, and loading spinners during translation requests.
+The frontend uses a minimal three-column layout built with Bootstrap (light mode) and vanilla JavaScript. Each column represents one of the three supported languages (French, English, Polish) with full-height interactive text areas that stretch from top to bottom of the viewport. The interface employs a single-page application approach with dynamic content updates via AJAX calls. Visual feedback is provided through subtle CSS transitions and active column highlighting, with all status messages and loading indicators removed for a clean, distraction-free experience.
 
 ## Backend Architecture
 The backend follows a simple Flask application structure with separation of concerns:
