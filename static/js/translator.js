@@ -118,112 +118,60 @@ class LiveTranslator {
             return;
         }
         
-        // Get the new chunk of text that needs translation
+        // Check if we have significant new content to translate
         const lastTranslated = this.lastTranslatedText[sourceLanguage] || '';
-        const newChunk = this.getNewTextChunk(lastTranslated, text.trim());
+        const shouldTranslate = this.shouldTranslateNewContent(lastTranslated, text.trim());
         
-        // If no new content, skip translation
-        if (!newChunk) {
-            console.log('No new content to translate');
+        if (!shouldTranslate) {
+            console.log('No significant new content to translate');
             return;
         }
         
-        // Set debounced translation - only send the new chunk
+        // Set debounced translation - translate full text for accuracy
         this.translationTimeout = setTimeout(() => {
-            console.log('🕐 TIMING: Debounce delay completed, starting incremental translation');
-            console.log('Translating new chunk only:', newChunk.substring(0, 50) + '...');
-            this.translateIncremental(newChunk, text.trim(), sourceLanguage);
-        }, 300);
+            console.log('🕐 TIMING: Debounce delay completed, starting full text translation');
+            console.log('Translating full text:', text.trim().length, 'characters');
+            this.translateText(text.trim(), sourceLanguage);
+        }, 500); // Slightly longer debounce for better batching
     }
 
-    getNewTextChunk(lastText, currentText) {
-        // If current text is shorter, user deleted content - translate everything
+    shouldTranslateNewContent(lastText, currentText) {
+        // Always translate if text was deleted (shorter than before)
         if (currentText.length < lastText.length) {
-            return currentText;
+            return true;
         }
         
-        // If current text starts with last text, extract the new part
-        if (currentText.startsWith(lastText)) {
-            const newPart = currentText.substring(lastText.length).trim();
-            // Only translate if there's substantial new content (more than just spaces/punctuation)
-            if (newPart.length > 2) {
-                return newPart;
-            }
+        // Calculate the amount of new content
+        const newCharCount = currentText.length - lastText.length;
+        
+        // Only translate if there's substantial new content
+        if (newCharCount < 10) {
+            return false; // Too little new content
         }
         
-        // If text was significantly changed, translate the last sentence/paragraph
+        // Check if we have a complete new sentence or meaningful phrase
         const sentences = currentText.split(/[.!?]+/).filter(s => s.trim().length > 0);
-        if (sentences.length > 0) {
-            const lastSentence = sentences[sentences.length - 1].trim();
-            if (lastSentence.length > 10) {
-                return lastSentence;
+        const lastSentences = lastText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+        
+        // Translate if we have new complete sentences
+        if (sentences.length > lastSentences.length) {
+            return true;
+        }
+        
+        // Or if the last sentence has grown significantly (>30 characters)
+        if (sentences.length > 0 && lastSentences.length > 0) {
+            const currentLastSentence = sentences[sentences.length - 1].trim();
+            const previousLastSentence = lastSentences.length > 0 ? lastSentences[lastSentences.length - 1].trim() : '';
+            
+            if (currentLastSentence.length - previousLastSentence.length > 30) {
+                return true;
             }
         }
         
-        return null; // No significant new content
+        return false;
     }
 
-    async translateIncremental(newChunk, fullText, sourceLanguage) {
-        const startTime = performance.now();
-        console.log('🕐 TIMING: Incremental translation process started');
-        console.log('TRANSLATE REQUEST: Translating chunk for', sourceLanguage, 'chunk length:', newChunk.length);
-        
-        if (this.isTranslating) {
-            console.log('TRANSLATE BLOCKED: Already translating');
-            return;
-        }
-        
-        this.isTranslating = true;
-        
-        try {
-            const apiStartTime = performance.now();
-            console.log('🕐 TIMING: API request starting for chunk translation');
-            
-            const response = await fetch('/translate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    text: newChunk, // Only send the new chunk
-                    source_language: sourceLanguage,
-                    is_incremental: true
-                })
-            });
-            
-            const apiEndTime = performance.now();
-            const apiDuration = apiEndTime - apiStartTime;
-            console.log('🕐 TIMING: API response received in', apiDuration, 'ms');
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                console.log('TRANSLATE SUCCESS: Received chunk translations');
-                
-                // Update last translated text to full text
-                this.lastTranslatedText[sourceLanguage] = fullText;
-                
-                // Append translations to other columns
-                this.appendTranslations(data.translations, sourceLanguage);
-                
-                // Sync full text to Firebase
-                const fullTranslations = this.getCurrentTranslations();
-                fullTranslations[sourceLanguage] = fullText;
-                this.syncToFirebase(fullTranslations, sourceLanguage);
-                
-                const totalTime = performance.now() - startTime;
-                console.log('🕐 TIMING: Total incremental translation time:', totalTime, 'ms');
-            } else {
-                console.error('TRANSLATE ERROR: API returned error =', data.error);
-                this.showError(data.error || 'Translation failed');
-            }
-        } catch (error) {
-            console.error('TRANSLATE NETWORK ERROR:', error);
-            this.showError('Network error. Please check your connection.');
-        } finally {
-            this.isTranslating = false;
-        }
-    }
+    
 
     async translateText(text, sourceLanguage) {
         const startTime = performance.now();
@@ -313,29 +261,7 @@ class LiveTranslator {
         });
     }
 
-    appendTranslations(chunkTranslations, sourceLanguage) {
-        Object.keys(chunkTranslations).forEach(language => {
-            if (language !== sourceLanguage) {
-                const input = document.querySelector(`.translation-input[data-language="${language}"]`);
-                if (input) {
-                    // Append new translation with appropriate spacing
-                    const currentValue = input.value;
-                    const newChunk = chunkTranslations[language];
-                    
-                    let separator = '';
-                    if (currentValue.length > 0 && !currentValue.endsWith(' ') && !newChunk.startsWith(' ')) {
-                        separator = ' ';
-                    }
-                    
-                    input.value = currentValue + separator + newChunk;
-                    this.lastTranslatedText[language] = input.value;
-                    
-                    // Auto-scroll to show new content
-                    this.autoScrollToBottomForLanguage(input, language);
-                }
-            }
-        });
-    }
+    
 
     getCurrentTranslations() {
         const translations = {};

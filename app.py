@@ -26,7 +26,6 @@ def translate():
         data = request.get_json()
         text = data.get('text', '').strip()
         source_language = data.get('source_language', '')
-        is_incremental = data.get('is_incremental', False)
         
         if not text:
             return jsonify({
@@ -38,13 +37,8 @@ def translate():
                 }
             })
         
-        # Use chunked translation for incremental requests
-        if is_incremental:
-            logging.info(f"Processing incremental translation: {len(text)} characters")
-            translations = translator.translate_chunk(text, source_language)
-        else:
-            logging.info(f"Processing full translation: {len(text)} characters")
-            translations = translator.translate_text(text, source_language)
+        logging.info(f"Processing translation: {len(text)} characters")
+        translations = translator.translate_text(text, source_language)
         
         return jsonify({
             'success': True,
