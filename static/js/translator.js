@@ -251,14 +251,37 @@ class LiveTranslator {
             if (language !== sourceLanguage) {
                 const input = document.querySelector(`.translation-input[data-language="${language}"]`);
                 if (input) {
+                    // Store previous text to compare for highlighting
+                    const previousText = input.value;
                     input.value = translations[language];
                     this.lastTranslatedText[language] = translations[language];
+                    
+                    // Apply highlight effect for new content
+                    this.highlightNewContent(input, previousText, translations[language]);
                     
                     // Smart scroll for non-active columns
                     this.autoScrollToBottomForLanguage(input, language);
                 }
             }
         });
+    }
+
+    highlightNewContent(input, previousText, newText) {
+        // Apply temporary highlight effect to show new content
+        input.classList.remove('highlight-new');
+        
+        // Force reflow to ensure the class removal takes effect
+        input.offsetHeight;
+        
+        // Add highlight class if content has changed
+        if (previousText !== newText) {
+            input.classList.add('highlight-new');
+            
+            // Remove highlight after animation completes
+            setTimeout(() => {
+                input.classList.remove('highlight-new');
+            }, 3000);
+        }
     }
 
     
@@ -427,7 +450,10 @@ class LiveTranslator {
                         const isActiveInput = input === document.activeElement;
                         const cursorPosition = isActiveInput ? input.selectionStart : null;
                         
+                        // Apply highlight effect for new content from Firebase
+                        const previousText = input.value;
                         input.value = newValue;
+                        this.highlightNewContent(input, previousText, newValue);
                         this.lastTranslatedText[language] = newValue;
                         
                         // Restore cursor position for active input
