@@ -13,8 +13,9 @@ class LiveTranslator {
     }
 
     generateSessionId() {
-        // Generate a unique session ID for multi-device sync
-        return 'session_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        // Use a fixed session ID so all devices connect to the same session
+        // You can change this to create different rooms
+        return 'shared_translation_session';
     }
 
     init() {
@@ -227,8 +228,9 @@ class LiveTranslator {
             this.database = database;
             this.sessionRef = ref(database, `sessions/${this.sessionId}`);
             
-            console.log('Attempting Firebase connection with session:', this.sessionId);
+            console.log('Attempting Firebase connection with SHARED session:', this.sessionId);
             console.log('Database reference:', this.sessionRef);
+            console.log('All devices using this URL will sync to the same session');
             
             // Test Firebase write immediately
             const testData = {
