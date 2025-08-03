@@ -8,6 +8,9 @@ This is a live translation web application that provides real-time translation b
 ✓ **Removed complex WebSocket/PostgreSQL code** - Simplified architecture for reliability  
 ✓ **Enhanced parallel API calls** - Reduced translation time to ~3 seconds
 ✓ **Fixed Firebase region URL** - Using correct Europe West 1 database endpoint
+✓ **Resolved mobile input issues** - Enhanced touch events and debugging for mobile compatibility
+✓ **Fixed speech input truncation** - Protected active typing from Firebase sync overwrites
+✓ **Optimized translation speed** - Reduced debounce to 300ms, achieving 2-3 second translations
 
 # User Preferences
 
