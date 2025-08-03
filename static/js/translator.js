@@ -7,6 +7,7 @@ class LiveTranslator {
         this.scrollPositions = {}; // Track scroll positions for each column
         this.sessionId = this.generateSessionId();
         this.isReceivingUpdate = false; // Prevent feedback loops
+        this.lastInputTime = {}; // Track when user last typed in each language
         
         this.init();
         this.initFirebaseSync();
@@ -58,6 +59,10 @@ class LiveTranslator {
             
             input.addEventListener('input', (e) => {
                 console.log('INPUT EVENT: Language =', language, 'Active =', this.activeLanguage, 'Text length =', e.target.value.length);
+                
+                // Track input timing for this language
+                this.lastInputTime[language] = Date.now();
+                
                 if (this.activeLanguage === language) {
                     this.handleInput(e.target.value, language);
                     // For active typing, always keep at bottom
@@ -315,6 +320,13 @@ class LiveTranslator {
         }
     }
 
+    hasRecentInputActivity(language) {
+        // Check if user has typed in this language within the last 3 seconds
+        const lastInput = this.lastInputTime[language] || 0;
+        const timeSinceLastInput = Date.now() - lastInput;
+        return timeSinceLastInput < 3000; // 3 second window
+    }
+
     initFirebaseSync() {
         // Initialize Firebase real-time sync
         if (!window.firebase) {
@@ -415,8 +427,9 @@ class LiveTranslator {
                     // CRITICAL: Don't overwrite if user is currently typing in this column
                     const isCurrentlyActive = (language === this.activeLanguage);
                     const isUserTyping = input === document.activeElement;
+                    const hasRecentInput = this.hasRecentInputActivity(language);
                     
-                    if (isCurrentlyActive && isUserTyping) {
+                    if (isCurrentlyActive && isUserTyping && hasRecentInput) {
                         console.log(`Skipping Firebase update for ${language} - user is actively typing`);
                         return; // Skip this column to prevent overwriting speech input
                     }
