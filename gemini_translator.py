@@ -98,7 +98,7 @@ Translations:"""
 
         try:
             response = self.client.models.generate_content(
-                model="gemini-2.5-flash", contents=prompt)
+                model="gemini-2.5-flash-lite", contents=prompt)
             
             if response.text:
                 lines = response.text.strip().split('\n')

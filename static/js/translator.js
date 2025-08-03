@@ -128,7 +128,7 @@ class LiveTranslator {
             console.log('🕐 TIMING: Debounce delay completed, starting translation');
             console.log('Starting translation for full text:', text.substring(0, 100) + '...');
             this.translateText(text.trim(), sourceLanguage);
-        }, 500); // Reduced to 500ms for faster response
+        }, 300); // Further reduced to 300ms - network latency is the real issue
     }
 
     async translateText(text, sourceLanguage) {
