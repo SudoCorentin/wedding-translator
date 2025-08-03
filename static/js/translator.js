@@ -5,8 +5,16 @@ class LiveTranslator {
         this.lastTranslatedText = {};
         this.isTranslating = false;
         this.scrollPositions = {}; // Track scroll positions for each column
+        this.sessionId = this.generateSessionId();
+        this.isReceivingUpdate = false; // Prevent feedback loops
         
         this.init();
+        this.initFirebaseSync();
+    }
+
+    generateSessionId() {
+        // Generate a unique session ID for multi-device sync
+        return 'session_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
     }
 
     init() {
@@ -137,6 +145,9 @@ class LiveTranslator {
                 
                 // Update translations in other columns
                 this.updateTranslations(data.translations, sourceLanguage);
+                
+                // Sync to Firebase for multi-device support
+                this.syncToFirebase(data.translations, sourceLanguage);
             } else {
                 this.showError(data.error || 'Translation failed');
             }
@@ -201,6 +212,80 @@ class LiveTranslator {
         // For the active typing area, always keep cursor visible at bottom
         if (textarea && textarea.scrollHeight > textarea.clientHeight) {
             textarea.scrollTop = textarea.scrollHeight;
+        }
+    }
+
+    initFirebaseSync() {
+        // Initialize Firebase real-time sync
+        if (!window.firebase) {
+            console.log('Firebase not available, multi-device sync disabled');
+            return;
+        }
+
+        try {
+            const { database, ref, set, onValue } = window.firebase;
+            this.database = database;
+            this.sessionRef = ref(database, `sessions/${this.sessionId}`);
+            
+            // Listen for changes from other devices
+            onValue(this.sessionRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data && !this.isReceivingUpdate) {
+                    console.log('Received Firebase sync update');
+                    this.isReceivingUpdate = true;
+                    this.updateFromFirebase(data);
+                    setTimeout(() => {
+                        this.isReceivingUpdate = false;
+                    }, 100);
+                }
+            });
+            
+            console.log('Firebase sync initialized with session:', this.sessionId);
+        } catch (error) {
+            console.log('Firebase sync setup failed:', error);
+        }
+    }
+
+    syncToFirebase(translations, activeLanguage) {
+        // Send updates to Firebase for other devices
+        if (!this.database || this.isReceivingUpdate) {
+            return;
+        }
+
+        try {
+            const { ref, set } = window.firebase;
+            const updateData = {
+                translations: translations,
+                activeLanguage: activeLanguage,
+                timestamp: Date.now()
+            };
+            
+            set(this.sessionRef, updateData);
+            console.log('Synced to Firebase');
+        } catch (error) {
+            console.log('Firebase sync failed:', error);
+        }
+    }
+
+    updateFromFirebase(data) {
+        // Update translations received from other devices
+        if (data.translations) {
+            Object.keys(data.translations).forEach(language => {
+                const input = document.querySelector(`.translation-input[data-language="${language}"]`);
+                if (input && data.translations[language] !== undefined) {
+                    // Only update if different to avoid cursor jumping
+                    if (input.value !== data.translations[language]) {
+                        input.value = data.translations[language];
+                        this.lastTranslatedText[language] = data.translations[language];
+                        this.autoScrollToBottomForLanguage(input, language);
+                    }
+                }
+            });
+            
+            // Update active language indicator
+            if (data.activeLanguage && data.activeLanguage !== this.activeLanguage) {
+                this.selectColumn(data.activeLanguage);
+            }
         }
     }
 }
