@@ -237,9 +237,10 @@ class LiveTranslator {
             };
             
             set(this.sessionRef, testData).then(() => {
-                console.log('✓ Firebase write test successful');
+                console.log('✓ Firebase write test successful - database rules are properly configured');
             }).catch((error) => {
-                console.error('✗ Firebase write test failed:', error);
+                console.error('✗ Firebase write test failed - check database rules:', error);
+                console.error('Database rules must allow read/write access');
             });
             
             // Listen for changes from other devices
