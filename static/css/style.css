@@ -51,6 +51,21 @@ html, body {
     height: 14px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+}
+
+/* Clean button styling */
+.clean-button {
+    font-size: 8px;
+    color: #999;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: color 0.2s;
+}
+
+.clean-button:hover {
+    color: #333;
+    text-decoration: underline;
 }
 
 /* Text area with no padding/margins */

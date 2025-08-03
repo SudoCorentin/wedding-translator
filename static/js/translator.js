@@ -374,7 +374,33 @@ class LiveTranslator {
     }
 }
 
+// Global function to clear all text
+function clearAllText() {
+    const inputs = document.querySelectorAll('.translation-input');
+    inputs.forEach(input => {
+        input.value = '';
+    });
+    
+    // Clear the translator's internal state
+    if (window.liveTranslator) {
+        window.liveTranslator.lastTranslatedText = {
+            french: '',
+            english: '',
+            polish: ''
+        };
+        
+        // Clear Firebase data
+        window.liveTranslator.syncToFirebase({
+            french: '',
+            english: '',
+            polish: ''
+        }, null);
+    }
+    
+    console.log('All text cleared');
+}
+
 // Initialize the translator when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    new LiveTranslator();
+    window.liveTranslator = new LiveTranslator();
 });
