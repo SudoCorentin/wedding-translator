@@ -249,12 +249,20 @@ class LiveTranslator {
                 console.log('Firebase onValue triggered with data:', data);
                 
                 if (data && data.translations && !this.isReceivingUpdate) {
-                    console.log('Received Firebase sync update with translations');
+                    console.log('Received Firebase sync update with translations - updating UI');
                     this.isReceivingUpdate = true;
+                    
+                    // Force update the UI with Firebase data
                     this.updateFromFirebase(data);
+                    
+                    // Brief delay to prevent feedback loops
                     setTimeout(() => {
                         this.isReceivingUpdate = false;
-                    }, 100);
+                    }, 200);
+                } else if (data && !data.translations) {
+                    console.log('Firebase data received but no translations found');
+                } else if (this.isReceivingUpdate) {
+                    console.log('Skipping Firebase update - currently receiving update');
                 }
             }, (error) => {
                 console.error('Firebase onValue error:', error);
@@ -295,21 +303,38 @@ class LiveTranslator {
 
     updateFromFirebase(data) {
         // Update translations received from other devices
+        console.log('Updating UI from Firebase data:', data);
+        
         if (data.translations) {
             Object.keys(data.translations).forEach(language => {
                 const input = document.querySelector(`.translation-input[data-language="${language}"]`);
                 if (input && data.translations[language] !== undefined) {
+                    const newValue = data.translations[language];
+                    console.log(`Updating ${language} column with: "${newValue}"`);
+                    
                     // Only update if different to avoid cursor jumping
-                    if (input.value !== data.translations[language]) {
-                        input.value = data.translations[language];
-                        this.lastTranslatedText[language] = data.translations[language];
+                    if (input.value !== newValue) {
+                        // Save cursor position if this is the active input
+                        const isActiveInput = input === document.activeElement;
+                        const cursorPosition = isActiveInput ? input.selectionStart : null;
+                        
+                        input.value = newValue;
+                        this.lastTranslatedText[language] = newValue;
+                        
+                        // Restore cursor position for active input
+                        if (isActiveInput && cursorPosition !== null) {
+                            input.setSelectionRange(cursorPosition, cursorPosition);
+                        }
+                        
                         this.autoScrollToBottomForLanguage(input, language);
+                        console.log(`✓ Updated ${language} column successfully`);
                     }
                 }
             });
             
             // Update active language indicator
             if (data.activeLanguage && data.activeLanguage !== this.activeLanguage) {
+                console.log(`Updating active language from ${this.activeLanguage} to ${data.activeLanguage}`);
                 this.selectColumn(data.activeLanguage);
             }
         }
