@@ -87,10 +87,14 @@ class GeminiTranslator:
                 for lang in target_languages:
                     sentence_results[lang].append(sentence)
         
-        # Reassemble sentences with proper spacing
+        # Reassemble chunks maintaining original structure
         final_translations = {}
         for lang in target_languages:
-            final_translations[lang] = ' '.join(sentence_results[lang])
+            # Join with line breaks if original text had line breaks
+            if '\n' in text:
+                final_translations[lang] = '\n\n'.join(sentence_results[lang])
+            else:
+                final_translations[lang] = ' '.join(sentence_results[lang])
         
         end_time = time.time()
         logging.info(f"🕐 TIMING: Sentence-by-sentence translation completed in {(end_time - start_time)*1000:.0f}ms")
@@ -99,25 +103,35 @@ class GeminiTranslator:
     
     def _split_into_sentences(self, text: str) -> list:
         """
-        Split text into sentences using improved punctuation detection
+        Split text into logical chunks - sentences OR line breaks
         """
         import re
         
-        # More robust sentence splitting that handles various cases
-        # Split on sentence-ending punctuation (. ! ?) followed by whitespace
-        # This preserves sentence boundaries without requiring capitals
-        sentence_pattern = r'(?<=[.!?])\s+'
-        sentences = re.split(sentence_pattern, text.strip())
+        # Split on both sentence punctuation AND line breaks
+        # This handles real-world text with bullet points, line breaks, etc.
         
-        # Clean up empty sentences and add back punctuation context
-        clean_sentences = []
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if sentence:
-                clean_sentences.append(sentence)
+        # First split on line breaks (newlines)
+        lines = text.strip().split('\n')
         
-        logging.info(f"Split into sentences: {[s[:30] + '...' for s in clean_sentences]}")
-        return clean_sentences
+        chunks = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Further split each line on sentence punctuation if it's long
+            if len(line) > 100:  # Only split long lines
+                sentence_pattern = r'(?<=[.!?])\s+'
+                sub_sentences = re.split(sentence_pattern, line)
+                for sub in sub_sentences:
+                    sub = sub.strip()
+                    if sub:
+                        chunks.append(sub)
+            else:
+                chunks.append(line)
+        
+        logging.info(f"Split into {len(chunks)} chunks: {[s[:30] + '...' for s in chunks]}")
+        return chunks
     
     def _translate_batch(self, text: str, source_language: str, target_languages: list) -> dict:
         """
