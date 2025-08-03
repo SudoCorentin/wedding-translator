@@ -75,17 +75,29 @@ class GeminiTranslator:
         Returns:
             Translated text
         """
-        prompt = f"""Translate the following text from {source_lang} to {target_lang}. 
-        Only return the translation, no explanations or additional text.
-        
-        Text to translate: {text}"""
+        # More explicit and stronger translation prompt
+        prompt = f"""You are a professional translator. Translate this text from {source_lang} into {target_lang}.
+
+IMPORTANT: You must translate the text into {target_lang}. Do not keep it in {source_lang}.
+
+Source language: {source_lang}
+Target language: {target_lang}
+Text to translate: "{text}"
+
+Translation in {target_lang}:"""
 
         try:
             response = self.client.models.generate_content(
-                model="gemini-2.5-flash-lite", contents=prompt)
+                model="gemini-2.5-flash", contents=prompt)
 
             if response.text:
-                return response.text.strip()
+                translated = response.text.strip()
+                # Remove any quotation marks that might wrap the translation
+                if translated.startswith('"') and translated.endswith('"'):
+                    translated = translated[1:-1]
+                elif translated.startswith("'") and translated.endswith("'"):
+                    translated = translated[1:-1]
+                return translated
             else:
                 raise Exception("Empty response from Gemini API")
 
