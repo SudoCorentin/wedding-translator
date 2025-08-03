@@ -5,8 +5,12 @@ class LiveTranslator {
         this.lastTranslatedText = {};
         this.isTranslating = false;
         this.scrollPositions = {}; // Track scroll positions for each column
+        this.socket = null;
+        this.sessionId = window.sessionId;
+        this.isReceivingUpdate = false; // Prevent feedback loops
         
         this.init();
+        this.initWebSocket();
     }
     
     init() {
@@ -55,6 +59,9 @@ class LiveTranslator {
                     this.handleInput(e.target.value, language);
                     // For active typing, always keep at bottom
                     this.scrollToBottomIfTyping(e.target);
+                    
+                    // Broadcast typing to other devices
+                    this.broadcastTypingUpdate(language, e.target.value);
                 }
             });
             
@@ -240,6 +247,99 @@ class LiveTranslator {
         // For the active typing area, always keep cursor visible at bottom
         if (textarea && textarea.scrollHeight > textarea.clientHeight) {
             textarea.scrollTop = textarea.scrollHeight;
+        }
+    }
+    
+    initWebSocket() {
+        // Initialize Socket.IO connection for multi-device sync
+        this.socket = io();
+        
+        this.socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+        
+        // Handle real-time translation updates from other devices
+        this.socket.on('translation_update', (data) => {
+            console.log('Received translation update:', data);
+            if (!this.isReceivingUpdate) {
+                this.isReceivingUpdate = true;
+                this.updateTranslationsFromSync(data.translations, data.active_language);
+                this.isReceivingUpdate = false;
+            }
+        });
+        
+        // Handle session state when connecting
+        this.socket.on('session_state', (data) => {
+            console.log('Received session state:', data);
+            if (data.translations) {
+                this.isReceivingUpdate = true;
+                this.updateTranslationsFromSync(data.translations, data.active_language);
+                this.isReceivingUpdate = false;
+            }
+        });
+        
+        // Handle typing synchronization
+        this.socket.on('typing_sync', (data) => {
+            if (!this.isReceivingUpdate) {
+                this.syncTypingFromOtherDevice(data);
+            }
+        });
+        
+        // Handle clear translations
+        this.socket.on('translation_clear', () => {
+            if (!this.isReceivingUpdate) {
+                this.isReceivingUpdate = true;
+                this.clearAllTranslations();
+                this.isReceivingUpdate = false;
+            }
+        });
+    }
+    
+    updateTranslationsFromSync(translations, activeLanguage) {
+        // Update translations received from other devices
+        Object.keys(translations).forEach(language => {
+            const input = document.querySelector(`.translation-input[data-language="${language}"]`);
+            if (input && translations[language] !== undefined) {
+                input.value = translations[language];
+                this.lastTranslatedText[language] = translations[language];
+                this.autoScrollToBottomForLanguage(input, language);
+            }
+        });
+        
+        // Update active language indicator
+        if (activeLanguage && activeLanguage !== this.activeLanguage) {
+            this.selectColumn(activeLanguage);
+        }
+    }
+    
+    syncTypingFromOtherDevice(data) {
+        // Update text from other device's typing
+        const input = document.querySelector(`.translation-input[data-language="${data.language}"]`);
+        if (input && data.text !== undefined) {
+            input.value = data.text;
+            this.autoScrollToBottomForLanguage(input, data.language);
+        }
+    }
+    
+    clearAllTranslations() {
+        // Clear all translation inputs
+        this.inputs.forEach(input => {
+            input.value = '';
+            this.lastTranslatedText[input.dataset.language] = '';
+        });
+    }
+    
+    broadcastTypingUpdate(language, text) {
+        // Send typing updates to other devices
+        if (this.socket && !this.isReceivingUpdate) {
+            this.socket.emit('typing_update', {
+                language: language,
+                text: text
+            });
         }
     }
 }
