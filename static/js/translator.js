@@ -127,7 +127,7 @@ class LiveTranslator {
         this.translationTimeout = setTimeout(() => {
             console.log('Starting translation for full text:', text.substring(0, 100) + '...');
             this.translateText(text.trim(), sourceLanguage);
-        }, 300); // Reduced to 300ms for faster response
+        }, 2000); // increase to 2000 to hit the API max 30 times per minute
     }
 
     async translateText(text, sourceLanguage) {
@@ -281,7 +281,7 @@ class LiveTranslator {
                     // Brief delay to prevent feedback loops
                     setTimeout(() => {
                         this.isReceivingUpdate = false;
-                    }, 200);
+                    }, 2000);
                 } else if (data && !data.translations) {
                     console.log('Firebase data received but no translations found');
                 } else if (this.isReceivingUpdate) {
