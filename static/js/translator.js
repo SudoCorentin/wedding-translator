@@ -6,7 +6,8 @@ class LiveTranslator {
         this.isTranslating = false;
         this.scrollPositions = {}; // Track scroll positions for each column
         this.sessionId = window.sessionId || null;
-        this.socket = null;
+        this.lastUpdateTime = 0;
+        this.syncInProgress = false;
         
         this.init();
     }
@@ -123,10 +124,15 @@ class LiveTranslator {
             return;
         }
         
-        // Set debounced translation
+        // Send instant sync to other devices first
+        if (this.sessionId) {
+            this.syncInputToDevices(sourceLanguage, text);
+        }
+
+        // Set debounced translation (much faster response)
         this.translationTimeout = setTimeout(() => {
             this.translateText(text, sourceLanguage);
-        }, 800); // 800ms debounce for better UX
+        }, 400); // Reduced to 400ms for faster response
     }
     
     async translateText(text, sourceLanguage) {
@@ -253,25 +259,38 @@ class LiveTranslator {
     }
     
     setupSocket() {
-        if (!this.sessionId || typeof io === 'undefined') return;
+        // Skip WebSocket setup - using HTTP polling instead for better reliability
+        if (this.sessionId) {
+            // Start polling for updates from other devices
+            this.startPolling();
+        }
+    }
+    
+    startPolling() {
+        // Poll every 200ms for near real-time updates
+        setInterval(() => {
+            this.checkForUpdates();
+        }, 200);
+    }
+    
+    async checkForUpdates() {
+        if (!this.sessionId) return;
         
-        this.socket = io();
-        
-        this.socket.on('connect', () => {
-            console.log('Connected to server');
-            this.socket.emit('join_session', { session_id: this.sessionId });
-        });
-        
-        this.socket.on('disconnect', () => {
-            console.log('Disconnected from server');
-        });
-        
-        this.socket.on('translation_update', (data) => {
-            console.log('Received translation update:', data);
-            if (data.session_id === this.sessionId) {
-                this.updateTranslationsFromSocket(data.translations, data.source_language);
+        try {
+            const response = await fetch(`/session/${this.sessionId}/updates`, {
+                method: 'GET'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.updated_at > this.lastUpdateTime) {
+                    this.updateFromServer(data);
+                    this.lastUpdateTime = data.updated_at;
+                }
             }
-        });
+        } catch (error) {
+            // Silently handle polling errors
+        }
     }
     
     updateTranslationsFromSocket(translations, sourceLanguage) {
@@ -290,6 +309,7 @@ class LiveTranslator {
         // Load initial session data if available
         if (window.sessionData && Object.keys(window.sessionData).length > 0) {
             const data = window.sessionData;
+            this.lastUpdateTime = new Date(data.updated_at).getTime();
             this.inputs.forEach(input => {
                 const language = input.dataset.language;
                 const text = data[`${language}_text`] || '';
@@ -299,6 +319,40 @@ class LiveTranslator {
                 }
             });
         }
+    }
+    
+    async syncInputToDevices(language, text) {
+        if (this.syncInProgress) return;
+        this.syncInProgress = true;
+        
+        try {
+            await fetch('/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: this.sessionId,
+                    language: language,
+                    text: text
+                })
+            });
+        } catch (error) {
+            // Silently handle sync errors
+        } finally {
+            this.syncInProgress = false;
+        }
+    }
+    
+    updateFromServer(data) {
+        // Update inputs from server data without triggering new translations
+        ['french', 'english', 'polish'].forEach(language => {
+            const input = document.querySelector(`.translation-input[data-language="${language}"]`);
+            const text = data[`${language}_text`] || '';
+            
+            if (input && input.value !== text && language !== this.activeLanguage) {
+                input.value = text;
+                this.autoScrollToBottomForLanguage(input, language);
+            }
+        });
     }
 }
 

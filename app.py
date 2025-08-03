@@ -104,6 +104,45 @@ def translate():
             'error': 'Translation failed. Please try again.'
         }), 500
 
+@app.route('/sync', methods=['POST'])
+def sync_input():
+    """Fast sync endpoint for instant multi-device updates"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        language = data.get('language')
+        text = data.get('text', '')
+        
+        if session_id and language:
+            from models import TranslationSession
+            session_obj = TranslationSession.query.get(session_id)
+            if session_obj:
+                setattr(session_obj, f'{language}_text', text)
+                session_obj.active_language = language
+                db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception:
+        return jsonify({'success': False}), 500
+
+@app.route('/session/<session_id>/updates')
+def get_session_updates(session_id):
+    """Fast polling endpoint for multi-device sync"""
+    try:
+        from models import TranslationSession
+        session_obj = TranslationSession.query.get(session_id)
+        if session_obj:
+            return jsonify({
+                'french_text': session_obj.french_text or '',
+                'english_text': session_obj.english_text or '',
+                'polish_text': session_obj.polish_text or '',
+                'active_language': session_obj.active_language,
+                'updated_at': session_obj.updated_at.timestamp()
+            })
+        return jsonify({'error': 'Session not found'}), 404
+    except Exception:
+        return jsonify({'error': 'Server error'}), 500
+
 # Create database tables
 with app.app_context():
     import models  # Import models to register them
