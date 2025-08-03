@@ -205,3 +205,115 @@ Translation in {target_lang}:"""
 
         # Fallback to parallel translation if batch fails
         return self.translate_text(text, source_language)
+
+    def translate_chunk(self, chunk: str, source_language: str) -> dict:
+        """
+        Translate a small chunk of text quickly
+        
+        Args:
+            chunk: Small text chunk to translate
+            source_language: Source language
+            
+        Returns:
+            Dict with translations for target languages only
+        """
+        import time
+        start_time = time.time()
+        logging.info(f"🕐 TIMING: Chunk translation started for {source_language}")
+        logging.info(f"Chunk text: '{chunk[:100]}...' ({len(chunk)} chars)")
+        
+        translations = {}
+        
+        # Get target languages only (don't include source)
+        target_languages = [
+            lang for lang in self.language_codes.keys()
+            if lang != source_language
+        ]
+        
+        if len(target_languages) == 2:
+            try:
+                # Use batch translation for chunk
+                batch_result = self._translate_chunk_batch(chunk, source_language, target_languages)
+                translations.update(batch_result)
+                
+                total_time = time.time() - start_time
+                logging.info(f"🕐 TIMING: Chunk translation completed in {total_time*1000:.0f}ms")
+                return translations
+                
+            except Exception as e:
+                logging.error(f"Chunk batch translation failed: {e}")
+                # Fallback to single calls for chunks
+                translations = self._translate_chunk_parallel(chunk, source_language, target_languages)
+        
+        total_time = time.time() - start_time
+        logging.info(f"🕐 TIMING: Chunk translation completed in {total_time*1000:.0f}ms")
+        return translations
+    
+    def _translate_chunk_batch(self, chunk: str, source_language: str, target_languages: list) -> dict:
+        """
+        Batch translate a chunk to multiple languages
+        """
+        source_lang_name = self.language_codes[source_language]
+        target_lang_names = [self.language_codes[lang] for lang in target_languages]
+        
+        # Optimized prompt for chunks
+        prompt = f"""Translate this text chunk from {source_lang_name}:
+
+"{chunk}"
+
+Provide translations in this exact format:
+{target_lang_names[0]}: [translation]
+{target_lang_names[1]}: [translation]"""
+
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash-lite", contents=prompt)
+            
+            if response.text:
+                lines = response.text.strip().split('\n')
+                result = {}
+                
+                for line in lines:
+                    line = line.strip()
+                    for i, target_lang in enumerate(target_languages):
+                        expected_prefix = f"{target_lang_names[i]}:"
+                        if line.lower().startswith(expected_prefix.lower()):
+                            translation = line[len(expected_prefix):].strip()
+                            result[target_lang] = translation
+                            break
+                
+                if len(result) == 2:
+                    return result
+                else:
+                    raise Exception("Could not parse batch chunk response")
+            else:
+                raise Exception("Empty response from Gemini API")
+                
+        except Exception as e:
+            logging.error(f"Chunk batch translation error: {str(e)}")
+            raise Exception(f"Chunk batch translation failed: {str(e)}")
+    
+    def _translate_chunk_parallel(self, chunk: str, source_language: str, target_languages: list) -> dict:
+        """
+        Parallel translate chunk as fallback
+        """
+        translations = {}
+        source_lang_name = self.language_codes[source_language]
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_to_lang = {
+                executor.submit(self._translate_to_language, chunk, source_lang_name, self.language_codes[target_lang]):
+                target_lang
+                for target_lang in target_languages
+            }
+            
+            for future in concurrent.futures.as_completed(future_to_lang):
+                target_lang = future_to_lang[future]
+                try:
+                    translated_text = future.result()
+                    translations[target_lang] = translated_text
+                except Exception as e:
+                    logging.error(f"Failed to translate chunk to {target_lang}: {str(e)}")
+                    translations[target_lang] = f"[Translation error]"
+        
+        return translations
