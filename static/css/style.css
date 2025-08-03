@@ -58,7 +58,6 @@ html, body {
     height: 100%;
     width: 100%;
     overflow-y: auto;
-    scroll-behavior: smooth;
     white-space: pre-wrap;
     word-wrap: break-word;
 }

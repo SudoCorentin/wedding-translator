@@ -46,7 +46,8 @@ class LiveTranslator {
             input.addEventListener('input', (e) => {
                 if (this.activeLanguage === language) {
                     this.handleInput(e.target.value, language);
-                    this.autoScrollToBottom(e.target); // Auto-scroll while typing
+                    // For active typing, always keep at bottom
+                    this.scrollToBottomIfTyping(e.target);
                 }
             });
             
@@ -205,12 +206,24 @@ class LiveTranslator {
     }
     
     autoScrollToBottom(textarea) {
-        // Auto-scroll to bottom when text gets long
+        // Only auto-scroll if user is already near the bottom (within 50px)
         if (textarea && textarea.scrollHeight > textarea.clientHeight) {
-            // Use requestAnimationFrame for smooth scrolling
-            requestAnimationFrame(() => {
-                textarea.scrollTop = textarea.scrollHeight;
-            });
+            const isNearBottom = textarea.scrollTop >= (textarea.scrollHeight - textarea.clientHeight - 50);
+            
+            if (isNearBottom) {
+                // Smooth scroll to bottom only if user was already near the bottom
+                textarea.scrollTo({
+                    top: textarea.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    }
+    
+    scrollToBottomIfTyping(textarea) {
+        // For the active typing area, always keep cursor visible at bottom
+        if (textarea && textarea.scrollHeight > textarea.clientHeight) {
+            textarea.scrollTop = textarea.scrollHeight;
         }
     }
 }
