@@ -4,6 +4,7 @@ class LiveTranslator {
         this.translationTimeout = null;
         this.lastTranslatedText = {};
         this.isTranslating = false;
+        this.scrollPositions = {}; // Track scroll positions for each column
         
         this.init();
     }
@@ -19,10 +20,16 @@ class LiveTranslator {
         // Initialize event listeners
         this.setupEventListeners();
         
-        // Initialize last translated text for each language
+        // Initialize last translated text and scroll tracking for each language
         this.inputs.forEach(input => {
             const language = input.dataset.language;
             this.lastTranslatedText[language] = '';
+            this.scrollPositions[language] = { isNearBottom: true };
+            
+            // Track scroll position for each textarea independently
+            input.addEventListener('scroll', () => {
+                this.updateScrollPosition(input, language);
+            });
         });
     }
     
@@ -161,7 +168,8 @@ class LiveTranslator {
                 if (input) {
                     input.value = translations[language];
                     this.lastTranslatedText[language] = translations[language];
-                    this.autoScrollToBottom(input); // Auto-scroll after updating
+                    // Each column handles its own scrolling based on its content length
+                    this.autoScrollToBottomForLanguage(input, language);
                     console.log('Updated', language, 'with:', translations[language]); // Debug log
                 } else {
                     console.error('Could not find input for language:', language); // Debug log
@@ -205,17 +213,25 @@ class LiveTranslator {
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
     
-    autoScrollToBottom(textarea) {
-        // Only auto-scroll if user is already near the bottom (within 50px)
-        if (textarea && textarea.scrollHeight > textarea.clientHeight) {
+    updateScrollPosition(textarea, language) {
+        // Track if user is near bottom for this specific column
+        if (textarea.scrollHeight > textarea.clientHeight) {
             const isNearBottom = textarea.scrollTop >= (textarea.scrollHeight - textarea.clientHeight - 50);
-            
-            if (isNearBottom) {
-                // Smooth scroll to bottom only if user was already near the bottom
+            this.scrollPositions[language].isNearBottom = isNearBottom;
+        }
+    }
+    
+    autoScrollToBottomForLanguage(textarea, language) {
+        // Only auto-scroll this specific column if user was near the bottom
+        if (textarea && textarea.scrollHeight > textarea.clientHeight) {
+            if (this.scrollPositions[language].isNearBottom) {
+                // Smooth scroll to bottom only if user was already near the bottom for this column
                 textarea.scrollTo({
                     top: textarea.scrollHeight,
                     behavior: 'smooth'
                 });
+                // Update the position tracker
+                this.scrollPositions[language].isNearBottom = true;
             }
         }
     }
