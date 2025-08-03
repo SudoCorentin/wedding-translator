@@ -37,8 +37,8 @@ def translate():
                 }
             })
         
-        # Get translations for the other two languages
-        translations = translator.translate_text(text, source_language)
+        # Get translations using optimized batch method (faster than parallel)
+        translations = translator.translate_text_batch(text, source_language)
         
         return jsonify({
             'success': True,

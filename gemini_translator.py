@@ -2,6 +2,7 @@ import os
 import logging
 import asyncio
 import concurrent.futures
+import json
 from google import genai
 from google.genai import types
 
@@ -93,3 +94,66 @@ class GeminiTranslator:
         except Exception as e:
             logging.error(f"Gemini API error: {str(e)}")
             raise Exception(f"Translation service unavailable: {str(e)}")
+    
+    def translate_text_batch(self, text: str, source_language: str) -> dict:
+        """
+        Translate text using a single API call with batch prompting for better speed
+        
+        Args:
+            text: Text to translate
+            source_language: Source language ('french', 'english', or 'polish')
+            
+        Returns:
+            Dict with translations for all three languages
+        """
+        translations = {
+            'french': '',
+            'english': '',
+            'polish': ''
+        }
+        
+        # Set the source text in the appropriate language
+        translations[source_language] = text
+        
+        # Get target languages
+        target_languages = [lang for lang in self.language_codes.keys() if lang != source_language]
+        
+        if len(target_languages) == 2:
+            # Create optimized prompt for batch translation
+            source_lang_name = self.language_codes[source_language]
+            target_lang_1 = self.language_codes[target_languages[0]]
+            target_lang_2 = self.language_codes[target_languages[1]]
+            
+            prompt = f"""Translate the following {source_lang_name} text to {target_lang_1} and {target_lang_2}. 
+Respond in JSON format with keys "{target_languages[0]}" and "{target_languages[1]}".
+
+Text to translate: {text}
+
+Response format:
+{{
+    "{target_languages[0]}": "translation here",
+    "{target_languages[1]}": "translation here"
+}}"""
+
+            try:
+                response = self.client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt
+                )
+                
+                if response.text:
+                    # Parse JSON response
+                    batch_translations = json.loads(response.text.strip())
+                    
+                    # Update translations dict
+                    for lang_code, translation in batch_translations.items():
+                        if lang_code in translations:
+                            translations[lang_code] = translation
+                    
+                    return translations
+                    
+            except Exception as e:
+                logging.error(f"Batch translation failed, falling back to parallel: {e}")
+        
+        # Fallback to parallel translation if batch fails
+        return self.translate_text(text, source_language)
