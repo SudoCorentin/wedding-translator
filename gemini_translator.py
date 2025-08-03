@@ -20,7 +20,7 @@ class GeminiTranslator:
 
     def translate_text(self, text: str, source_language: str) -> dict:
         """
-        Optimized single-call translation using batch processing
+        Smart chunked translation for long texts
         
         Args:
             text: Text to translate
@@ -32,50 +32,148 @@ class GeminiTranslator:
         import time
         start_time = time.time()
         logging.info(f"🕐 TIMING: Server translation started for {source_language}")
+        logging.info(f"Processing translation: {len(text)} characters")
         
         translations = {'french': '', 'english': '', 'polish': ''}
         translations[source_language] = text
 
+        # Check if text needs chunking (threshold: 500 characters)
+        if len(text) > 500:
+            logging.info(f"Text is {len(text)} chars, using chunked translation")
+            chunk_translations = self._translate_chunked(text, source_language)
+            translations.update(chunk_translations)
+        else:
+            logging.info(f"Text is {len(text)} chars, using single batch translation")
+            # Get target languages
+            target_languages = [
+                lang for lang in self.language_codes.keys()
+                if lang != source_language
+            ]
+            
+            if len(target_languages) == 2:
+                # Single API call for both translations
+                batch_start = time.time()
+                try:
+                    batch_result = self._translate_batch(text, source_language, target_languages)
+                    batch_end = time.time()
+                    logging.info(f"🕐 TIMING: Batch API call completed in {(batch_end - batch_start)*1000:.0f}ms")
+                    
+                    translations.update(batch_result)
+                except Exception as e:
+                    logging.error(f"Batch translation failed, falling back to parallel: {e}")
+                    # Fallback to parallel approach
+                    parallel_start = time.time()
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                        future_to_lang = {
+                            executor.submit(self._translate_to_language, text, self.language_codes[source_language], self.language_codes[target_lang]):
+                            target_lang
+                            for target_lang in target_languages
+                        }
+                        
+                        for future in concurrent.futures.as_completed(future_to_lang):
+                            target_lang = future_to_lang[future]
+                            try:
+                                translated_text = future.result()
+                                translations[target_lang] = translated_text
+                            except Exception as e:
+                                logging.error(f"Failed to translate to {target_lang}: {str(e)}")
+                                translations[target_lang] = f"Translation error: {str(e)}"
+                    parallel_end = time.time()
+                    logging.info(f"🕐 TIMING: Parallel fallback completed in {(parallel_end - parallel_start)*1000:.0f}ms")
+        
+        total_time = time.time() - start_time
+        logging.info(f"🕐 TIMING: Total server translation time: {total_time*1000:.0f}ms")
+        return translations
+    
+    def _translate_chunked(self, text: str, source_language: str) -> dict:
+        """
+        Translate long text by breaking it into smart chunks
+        """
+        import time
+        import re
+        
+        chunk_start = time.time()
+        logging.info("🔄 Starting chunked translation")
+        
+        # Smart chunking: Split by sentences, not arbitrary character counts
+        sentences = self._split_into_sentences(text)
+        chunks = self._group_sentences_into_chunks(sentences, max_chunk_size=400)
+        
+        logging.info(f"Split text into {len(chunks)} chunks")
+        
         # Get target languages
         target_languages = [
             lang for lang in self.language_codes.keys()
             if lang != source_language
         ]
         
-        if len(target_languages) == 2:
-            # Single API call for both translations
-            batch_start = time.time()
-            try:
-                batch_result = self._translate_batch(text, source_language, target_languages)
-                batch_end = time.time()
-                logging.info(f"🕐 TIMING: Batch API call completed in {(batch_end - batch_start)*1000:.0f}ms")
-                
-                translations.update(batch_result)
-            except Exception as e:
-                logging.error(f"Batch translation failed, falling back to parallel: {e}")
-                # Fallback to parallel approach
-                parallel_start = time.time()
-                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                    future_to_lang = {
-                        executor.submit(self._translate_to_language, text, self.language_codes[source_language], self.language_codes[target_lang]):
-                        target_lang
-                        for target_lang in target_languages
-                    }
-                    
-                    for future in concurrent.futures.as_completed(future_to_lang):
-                        target_lang = future_to_lang[future]
-                        try:
-                            translated_text = future.result()
-                            translations[target_lang] = translated_text
-                        except Exception as e:
-                            logging.error(f"Failed to translate to {target_lang}: {str(e)}")
-                            translations[target_lang] = f"Translation error: {str(e)}"
-                parallel_end = time.time()
-                logging.info(f"🕐 TIMING: Parallel fallback completed in {(parallel_end - parallel_start)*1000:.0f}ms")
+        # Initialize result storage
+        chunk_results = {lang: [] for lang in target_languages}
         
-        total_time = time.time() - start_time
-        logging.info(f"🕐 TIMING: Total server translation time: {total_time*1000:.0f}ms")
-        return translations
+        # Translate each chunk
+        for i, chunk in enumerate(chunks):
+            logging.info(f"Translating chunk {i+1}/{len(chunks)} ({len(chunk)} chars)")
+            
+            try:
+                chunk_translation = self._translate_batch(chunk, source_language, target_languages)
+                for lang in target_languages:
+                    chunk_results[lang].append(chunk_translation[lang])
+            except Exception as e:
+                logging.error(f"Chunk {i+1} translation failed: {e}")
+                # Add placeholder to maintain chunk order
+                for lang in target_languages:
+                    chunk_results[lang].append(f"[Translation error for chunk {i+1}]")
+        
+        # Reassemble chunks into complete translations
+        final_translations = {}
+        for lang in target_languages:
+            final_translations[lang] = ' '.join(chunk_results[lang])
+        
+        chunk_end = time.time()
+        logging.info(f"🕐 TIMING: Chunked translation completed in {(chunk_end - chunk_start)*1000:.0f}ms")
+        
+        return final_translations
+    
+    def _split_into_sentences(self, text: str) -> list:
+        """
+        Split text into sentences using smart punctuation detection
+        """
+        import re
+        
+        # Split on sentence-ending punctuation followed by space and capital letter
+        # This handles most cases while preserving abbreviations
+        sentence_pattern = r'(?<=[.!?])\s+(?=[A-Z])'
+        sentences = re.split(sentence_pattern, text.strip())
+        
+        # Clean up empty sentences
+        sentences = [s.strip() for s in sentences if s.strip()]
+        
+        return sentences
+    
+    def _group_sentences_into_chunks(self, sentences: list, max_chunk_size: int = 400) -> list:
+        """
+        Group sentences into chunks without breaking sentence boundaries
+        """
+        chunks = []
+        current_chunk = ""
+        
+        for sentence in sentences:
+            # Check if adding this sentence would exceed the limit
+            potential_chunk = current_chunk + " " + sentence if current_chunk else sentence
+            
+            if len(potential_chunk) <= max_chunk_size:
+                current_chunk = potential_chunk
+            else:
+                # Current chunk is full, start a new one
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                current_chunk = sentence
+        
+        # Add the last chunk
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+        
+        return chunks
     
     def _translate_batch(self, text: str, source_language: str, target_languages: list) -> dict:
         """
@@ -171,58 +269,7 @@ Translation in {target_lang}:"""
             logging.error(f"Gemini API error: {str(e)}")
             raise Exception(f"Translation service unavailable: {str(e)}")
 
-    def translate_text_batch(self, text: str, source_language: str) -> dict:
-        """
-        Translate text using a single API call with batch prompting for better speed
-        
-        Args:
-            text: Text to translate
-            source_language: Source language ('french', 'english', or 'polish')
-            
-        Returns:
-            Dict with translations for all three languages
-        """
-        translations = {'french': '', 'english': '', 'polish': ''}
 
-        # Set the source text in the appropriate language
-        translations[source_language] = text
-
-        # Get target languages
-        target_languages = [
-            lang for lang in self.language_codes.keys()
-            if lang != source_language
-        ]
-
-        if len(target_languages) == 2:
-            # Create optimized prompt for batch translation
-            source_lang_name = self.language_codes[source_language]
-            target_lang_1 = self.language_codes[target_languages[0]]
-            target_lang_2 = self.language_codes[target_languages[1]]
-
-            # Disable batch translation temporarily and use reliable parallel method
-            logging.info("Using parallel translation for reliability")
-            pass  # Skip batch translation
-
-        # Fallback to parallel translation if batch fails
-        return self.translate_text(text, source_language)
-
-    def translate_chunk(self, chunk: str, source_language: str) -> dict:
-        """
-        Translate a small chunk of text quickly
-        
-        Args:
-            chunk: Small text chunk to translate
-            source_language: Source language
-            
-        Returns:
-            Dict with translations for target languages only
-        """
-        import time
-        start_time = time.time()
-        logging.info(f"🕐 TIMING: Chunk translation started for {source_language}")
-        logging.info(f"Chunk text: '{chunk[:100]}...' ({len(chunk)} chars)")
-        
-        translations = {}
         
         # Get target languages only (don't include source)
         target_languages = [
